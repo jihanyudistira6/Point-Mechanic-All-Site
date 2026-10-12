@@ -47,25 +47,12 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
     setAiResponse(null);
 
     try {
-      const response = await fetch('/api/ai/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userQuery: finalQuestion,
-          siteContext: selectedSite,
-          totalRecords: mechanics.length,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Gagal memproses respon AI');
-      }
-
-      setAiResponse(data.answer);
+      const { queryAiAssistant } = await import('../services/aiService');
+      const answer = await queryAiAssistant(finalQuestion, selectedSite, mechanics);
+      setAiResponse(answer);
       if (!questionToAsk) setQuery('');
     } catch (err: any) {
-      setAiResponse(`Terjadi kesalahan: ${err.message || 'Tidak dapat terhubung ke server AI.'}`);
+      setAiResponse(`Terjadi kendala: ${err.message || 'Tidak dapat memproses pertanyaan.'}`);
     } finally {
       setIsLoading(false);
     }

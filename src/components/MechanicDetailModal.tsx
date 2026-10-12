@@ -91,7 +91,7 @@ export const MechanicDetailModal: React.FC<MechanicDetailModalProps> = ({
     setAiAnalysis(null);
 
     try {
-      const payload = {
+      const payload: Mechanic = {
         ...mechanic,
         startPoint,
         rank1BmcPoint,
@@ -105,23 +105,17 @@ export const MechanicDetailModal: React.FC<MechanicDetailModalProps> = ({
         promosi2026: isPromoted ? 'Promosi' : '-',
         pointsToNextGrade: nextInfo.pointsNeeded,
         nextGradeTarget: nextInfo.nextGrade,
+        totalAccelerationPoint: rank1BmcPoint + bmhPoint + masaKerjaPoint + qccSsPoint,
+        gradeProgressPercent: nextInfo.percent,
+        status,
       };
 
-      const response = await fetch('/api/ai/analyze-mechanic', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mechanic: payload }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Gagal memproses analisis AI');
-      }
-
-      setAiAnalysis(data.analysis);
+      const { analyzeMechanicWithAi } = await import('../services/aiService');
+      const analysis = await analyzeMechanicWithAi(payload);
+      setAiAnalysis(analysis);
       setActiveModalTab('ai-analysis');
     } catch (err: any) {
-      setAiAnalysis(`Gagal menjalankan evaluasi AI: ${err.message}`);
+      setAiAnalysis(`Gagal menjalankan evaluasi AI: ${err.message || String(err)}`);
     } finally {
       setIsAiLoading(false);
     }
