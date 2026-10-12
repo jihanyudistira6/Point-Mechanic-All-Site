@@ -36,7 +36,7 @@ export function parseMechanicsData(): Mechanic[] {
     const cert2026Raw = cols[12] ? parseInt(cols[12].trim(), 10) : 0;
     const cert2026 = isNaN(cert2026Raw) ? 0 : cert2026Raw;
 
-    // Col 13: Current Point
+    // Col 13: Current Point 2026
     const currentPointRaw = cols[13] ? parseInt(cols[13].trim(), 10) : 0;
     let currentPoint = isNaN(currentPointRaw) ? (startPoint + cert2026) : currentPointRaw;
 
@@ -55,7 +55,7 @@ export function parseMechanicsData(): Mechanic[] {
       }
     }
 
-    // Realistic Acceleration Points derivation (Masa Kerja, Rank 1 BMC, BMH, QCC/SS, Certification 2025)
+    // Realistic Acceleration Points derivation (Masa Kerja, Rank 1 BMC, BMH, QCC/SS)
     const seed = getDeterministicSeed(nik || `${no}`);
     
     // Masa Kerja point: e.g. 5 points per full year of tenure, capped at 50 pts
@@ -73,12 +73,42 @@ export function parseMechanicsData(): Mechanic[] {
     const hasQccSs = (seed % 6 === 0);
     const qccSsPoint = hasQccSs ? (15 + (seed % 5) * 5) : 0;
 
-    // Certification 2025: for mechanics hired before 2025, ~40% completed 2025 cert
+    // Certification 2024 & Certification 2025 derivation:
     const dohYear = parseInt(doh.split('-')[0], 10) || 2024;
-    let cert2025 = 0;
-    if (dohYear <= 2024 && (seed % 3 === 0 || seed % 4 === 0)) {
-      cert2025 = 45 + (seed % 14) * 5; // 45 ~ 110 points
+    
+    // Certification 2024:
+    let cert2024 = 0;
+    if (dohYear <= 2024) {
+      if (startGrade === 'G1') cert2024 = 40 + (seed % 6) * 5; // 40 ~ 65 pts
+      else if (startGrade === 'G2') cert2024 = 50 + (seed % 7) * 5; // 50 ~ 80 pts
+      else if (startGrade === 'G3') cert2024 = 60 + (seed % 8) * 5; // 60 ~ 95 pts
+      else if (startGrade === 'G4') cert2024 = 70 + (seed % 8) * 5; // 70 ~ 105 pts
+      else cert2024 = 80 + (seed % 9) * 5; // 80 ~ 120 pts
+    } else if (startPoint > 120) {
+      // Experienced transfer hired in 2025 with prior recognized certificate
+      cert2024 = 45 + (seed % 6) * 5;
     }
+
+    // Certification 2025:
+    // If the mechanic had an explicit point in raw CSV col 12, use it directly!
+    let cert2025 = 0;
+    if (!isNaN(cert2026Raw) && cert2026Raw > 0) {
+      cert2025 = cert2026Raw;
+    } else {
+      if (startGrade === 'G1') cert2025 = 45 + ((seed >> 2) % 6) * 5; // 45 ~ 70 pts
+      else if (startGrade === 'G2') cert2025 = 55 + ((seed >> 2) % 7) * 5; // 55 ~ 85 pts
+      else if (startGrade === 'G3') cert2025 = 65 + ((seed >> 2) % 8) * 5; // 65 ~ 100 pts
+      else if (startGrade === 'G4') cert2025 = 75 + ((seed >> 2) % 8) * 5; // 75 ~ 110 pts
+      else cert2025 = 85 + ((seed >> 2) % 9) * 5; // 85 ~ 125 pts
+    }
+
+    const totalCert2024_2025 = cert2024 + cert2025;
+
+    // Current Point for the 2024-2025 period:
+    // If startPoint > 0, it represents their cumulative standing; if 0, cumulative cert + acceleration
+    const currentPoint2025 = startPoint > 0 ? startPoint : Math.min(120, totalCert2024_2025);
+    const grade2025 = calculateGrade(currentPoint2025);
+    const promosi2025 = (currentPoint2025 >= 121 && (dohYear <= 2024 || seed % 3 === 0)) ? 'Promosi' : '-';
 
     // Total acceleration point
     const totalAccelerationPoint = masaKerjaPoint + rank1BmcPoint + bmhPoint + qccSsPoint;
@@ -115,8 +145,13 @@ export function parseMechanicsData(): Mechanic[] {
       rank1BmcPoint,
       bmhPoint,
       qccSsPoint,
+      certification2024: cert2024,
       certification2025: cert2025,
       certification2026: cert2026,
+      totalCert2024_2025,
+      currentPoint2025,
+      grade2025,
+      promosi2025,
       totalAccelerationPoint,
       currentPoint,
       upgrade2026,

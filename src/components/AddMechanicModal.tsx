@@ -25,11 +25,12 @@ export const AddMechanicModal: React.FC<AddMechanicModalProps> = ({
   const [doh, setDoh] = useState('2024-01-15');
   const [startGrade, setStartGrade] = useState('G1');
   const [startPoint, setStartPoint] = useState(0);
+  const [cert2024, setCert2024] = useState(0);
+  const [cert2025, setCert2025] = useState(0);
   const [cert2026, setCert2026] = useState(0);
   const [rank1Bmc, setRank1Bmc] = useState(0);
   const [bmh, setBmh] = useState(0);
   const [qccSs, setQccSs] = useState(0);
-  const [cert2025, setCert2025] = useState(0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +42,11 @@ export const AddMechanicModal: React.FC<AddMechanicModalProps> = ({
     const upGradeNum = parseInt(upgrade2026.replace('G', ''), 10) || 1;
     const isPromoted = upGradeNum > startGradeNum;
     const nextInfo = getNextGradeInfo(currentPoint);
+
+    const totalCert2024_2025 = cert2024 + cert2025;
+    const currentPoint2025 = startPoint > 0 ? startPoint : totalCert2024_2025;
+    const grade2025 = calculateGrade(currentPoint2025);
+    const promosi2025 = currentPoint2025 >= 121 ? 'Promosi' : '-';
 
     const newMechanic: Mechanic = {
       no: nextNo,
@@ -56,8 +62,13 @@ export const AddMechanicModal: React.FC<AddMechanicModalProps> = ({
       rank1BmcPoint: rank1Bmc,
       bmhPoint: bmh,
       qccSsPoint: qccSs,
+      certification2024: cert2024,
       certification2025: cert2025,
       certification2026: cert2026,
+      totalCert2024_2025,
+      currentPoint2025,
+      grade2025,
+      promosi2025,
       totalAccelerationPoint: 10 + rank1Bmc + bmh + qccSs,
       currentPoint,
       upgrade2026,
@@ -213,6 +224,16 @@ export const AddMechanicModal: React.FC<AddMechanicModalProps> = ({
                   value={qccSs}
                   onChange={(e) => setQccSs(parseInt(e.target.value, 10) || 0)}
                   className="w-full bg-purple-50/50 border border-purple-200 rounded px-2 py-1 font-mono text-purple-900"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-0.5">Cert 2024:</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={cert2024}
+                  onChange={(e) => setCert2024(parseInt(e.target.value, 10) || 0)}
+                  className="w-full bg-orange-50/50 border border-orange-200 rounded px-2 py-1 font-mono text-orange-900"
                 />
               </div>
               <div>

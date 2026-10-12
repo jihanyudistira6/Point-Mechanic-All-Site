@@ -18,20 +18,34 @@ import {
   CheckCircle2,
   RefreshCw,
   Database,
+  Calendar,
 } from 'lucide-react';
 
-const STORAGE_KEY = 'mechanic_point_database_records';
-const SPREADSHEET_SOURCE_KEY = 'mechanic_point_spreadsheet_source';
+const STORAGE_KEY = 'mechanic_point_database_records_v5';
+const SPREADSHEET_SOURCE_KEY = 'mechanic_point_spreadsheet_source_v3';
 
 export default function App() {
   // Load initial records from localStorage if present, else fallback to INITIAL_MECHANICS
   const [mechanics, setMechanics] = useState<Mechanic[]>(() => {
     try {
+      // Clean older version caches without cert 2024 & 2025
+      ['mechanic_point_database_records', 'mechanic_point_database_records_v2', 'mechanic_point_database_records_v3', 'mechanic_point_database_records_v4'].forEach((k) => {
+        try {
+          localStorage.removeItem(k);
+        } catch {}
+      });
+
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          // Verify that parsed records have non-zero certs
+          const hasCerts =
+            parsed.some((m) => (m.certification2024 || 0) > 0) &&
+            parsed.some((m) => (m.certification2025 || 0) > 0);
+          if (hasCerts) {
+            return parsed;
+          }
         }
       }
     } catch (e) {
@@ -49,7 +63,11 @@ export default function App() {
 
   const [lastSyncTime, setLastSyncTime] = useState<string>('Hari ini, Sinkron Otomatis');
   const [selectedSite, setSelectedSite] = useState<string>('ALL');
-  // Default and primary tab is 'table' (Overview & Grafik removed as requested)
+  
+  // Sheet state: '2024-2025' or '2026'
+  const [activeSheet, setActiveSheet] = useState<'2026' | '2024-2025'>('2024-2025');
+
+  // Primary tab: 'table' vs 'site-compare'
   const [activeTab, setActiveTab] = useState<'table' | 'site-compare'>('table');
 
   // AI Assistant panel toggle
@@ -98,47 +116,99 @@ export default function App() {
     setMechanics((prev) => [newMech, ...prev]);
   };
 
+  // Reset to initial database records (guaranteeing fresh cert 2024 & 2025 points)
+  const handleResetToInitialData = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
+    setMechanics(INITIAL_MECHANICS);
+    setLastSyncTime('Data disinkronkan ke default database');
+  };
+
   // Export CSV handler
   const handleExportCsv = () => {
-    const headers = [
-      'No',
-      'NIK',
-      'Nama',
-      'Site',
-      'DOH',
-      'Start Grade',
-      'Start Point',
-      'Status',
-      'Masa Kerja Point',
-      'Rank 1 BMC Point',
-      'BMH Point',
-      'QCC/SS Point',
-      'Certification 2025',
-      'Certification 2026',
-      'Current Point',
-      'Upgrade 2026',
-      'Promosi 2026',
-    ];
+    let headers: string[] = [];
+    let rows: (string | number)[][] = [];
 
-    const rows = siteFilteredMechanics.map((m) => [
-      m.no,
-      `"${m.nik}"`,
-      `"${m.nama}"`,
-      `"${m.site}"`,
-      m.doh,
-      m.startGrade,
-      m.startPoint,
-      m.status,
-      m.masaKerjaPoint,
-      m.rank1BmcPoint,
-      m.bmhPoint,
-      m.qccSsPoint,
-      m.certification2025,
-      m.certification2026,
-      m.currentPoint,
-      m.upgrade2026,
-      m.promosi2026,
-    ]);
+    if (activeSheet === '2024-2025') {
+      headers = [
+        'No',
+        'NIK',
+        'Nama',
+        'Site',
+        'DOH',
+        'Start Grade',
+        'Certification 2024',
+        'Certification 2025',
+        'Total Cert 2024-2025',
+        'Masa Kerja Point',
+        'Rank 1 BMC',
+        'BMH Point',
+        'QCC/SS Point',
+        'Current Point 2024-2025',
+        'Grade 2025',
+        'Promosi 2025',
+        'Status',
+      ];
+      rows = siteFilteredMechanics.map((m) => [
+        m.no,
+        `"${m.nik}"`,
+        `"${m.nama}"`,
+        `"${m.site}"`,
+        m.doh,
+        m.startGrade,
+        m.certification2024 || 0,
+        m.certification2025 || 0,
+        m.totalCert2024_2025 || 0,
+        m.masaKerjaPoint,
+        m.rank1BmcPoint,
+        m.bmhPoint,
+        m.qccSsPoint,
+        m.currentPoint2025 || m.startPoint,
+        m.grade2025 || m.startGrade,
+        m.promosi2025 || '-',
+        m.status,
+      ]);
+    } else {
+      headers = [
+        'No',
+        'NIK',
+        'Nama',
+        'Site',
+        'DOH',
+        'Start Grade',
+        'Start Point',
+        'Status',
+        'Masa Kerja Point',
+        'Rank 1 BMC Point',
+        'BMH Point',
+        'QCC/SS Point',
+        'Certification 2025',
+        'Certification 2026',
+        'Current Point',
+        'Upgrade 2026',
+        'Promosi 2026',
+      ];
+      rows = siteFilteredMechanics.map((m) => [
+        m.no,
+        `"${m.nik}"`,
+        `"${m.nama}"`,
+        `"${m.site}"`,
+        m.doh,
+        m.startGrade,
+        m.startPoint,
+        m.status,
+        m.masaKerjaPoint,
+        m.rank1BmcPoint,
+        m.bmhPoint,
+        m.qccSsPoint,
+        m.certification2025,
+        m.certification2026,
+        m.currentPoint,
+        m.upgrade2026,
+        m.promosi2026,
+      ]);
+    }
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -147,7 +217,7 @@ export default function App() {
     link.setAttribute('href', url);
     link.setAttribute(
       'download',
-      `mechanic_points_${selectedSite}_${new Date().toISOString().split('T')[0]}.csv`
+      `mechanic_points_${activeSheet}_${selectedSite}_${new Date().toISOString().split('T')[0]}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -185,7 +255,9 @@ export default function App() {
                 </span>
               </div>
               <p className="mt-1 text-xs text-slate-600">
-                Sistem database terintegrasi spreadsheet dengan fitur filter canggih seluruh site, pemantauan poin akselerasi (Rank 1 BMC, BMH, Masa Kerja, QCC/SS, Sertifikasi 2025 & 2026), serta evaluasi karir cerdas berbasis AI.
+                Sistem database terintegrasi spreadsheet dengan filter canggih seluruh site. Beralih antar sheet evaluasi{' '}
+                <strong className="text-amber-800">Current Point 2024-2025 (Cert 2024 & 2025)</strong> dan{' '}
+                <strong className="text-blue-800">Current Point 2026</strong> secara instan.
               </p>
             </div>
 
@@ -203,6 +275,15 @@ export default function App() {
               </button>
 
               <button
+                onClick={handleResetToInitialData}
+                title="Muat ulang seluruh point mechanic Certification 2024 & 2025 terbaru dari database"
+                className="px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50/80 hover:bg-amber-100 text-amber-900 text-xs font-medium flex items-center gap-1.5 transition-colors shadow-2xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
+                <span>Sinkron Poin Cert 2024–2025</span>
+              </button>
+
+              <button
                 onClick={() => setIsAiPanelOpen(!isAiPanelOpen)}
                 className="px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-900 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
               >
@@ -217,7 +298,7 @@ export default function App() {
             <div className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <ListFilter className="w-3 h-3 text-slate-400" />
-                <span>Pilih Filter Site Operasional:</span>
+                <span>Filter Site Operasional:</span>
               </div>
               {selectedSite !== 'ALL' && (
                 <button
@@ -270,10 +351,14 @@ export default function App() {
           onToggle={() => setIsAiPanelOpen(!isAiPanelOpen)}
         />
 
-        {/* 3. KPI Aggregate Metrics */}
-        <KpiCards mechanics={siteFilteredMechanics} selectedSite={selectedSite} />
+        {/* 3. KPI Aggregate Metrics (Adapts to Active Sheet: 2024-2025 vs 2026) */}
+        <KpiCards
+          mechanics={siteFilteredMechanics}
+          selectedSite={selectedSite}
+          activeSheet={activeSheet}
+        />
 
-        {/* 4. Primary View: TABEL DATABASE YANG DAPAT DIFILTER (Replacing Overview & Grafik) */}
+        {/* 4. Primary View: TABEL DATABASE DENGAN SHEET SWITCHER */}
         {activeTab === 'table' && (
           <div className="space-y-6">
             <MechanicTable
@@ -282,6 +367,8 @@ export default function App() {
               selectedSite={selectedSite}
               onSelectSite={(site) => setSelectedSite(site)}
               onViewMechanic={(m) => setViewingMechanic(m)}
+              activeSheet={activeSheet}
+              onSheetChange={(sheet) => setActiveSheet(sheet)}
             />
           </div>
         )}

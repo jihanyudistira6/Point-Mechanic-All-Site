@@ -13,12 +13,18 @@ export interface Mechanic {
   rank1BmcPoint: number;
   bmhPoint: number;
   qccSsPoint: number;
-  // Certification
-  certification2025: number;
-  certification2026: number;
-  // Summary points
+  // Certification by year
+  certification2024: number; // Point for 2024
+  certification2025: number; // Point for 2025
+  certification2026: number; // Point for 2026
+  // Period 2024-2025 summary
+  totalCert2024_2025: number;
+  currentPoint2025: number; // Accumulated point at end of 2024-2025
+  grade2025: string; // Grade achieved in 2024-2025
+  promosi2025: string; // 'Promosi' | '-'
+  // Period 2026 summary
   totalAccelerationPoint: number;
-  currentPoint: number;
+  currentPoint: number; // Current Point 2026
   upgrade2026: string; // G1 - G7
   promosi2026: string; // 'Promosi' | '-'
   nextGradeTarget: string;
@@ -38,6 +44,7 @@ export interface SiteSummary {
   totalRank1Bmc: number;
   totalBmh: number;
   totalQccSs: number;
+  totalCert2024: number;
   totalCert2025: number;
   totalCert2026: number;
   // Averages
@@ -45,6 +52,7 @@ export interface SiteSummary {
   avgRank1Bmc: number;
   avgBmh: number;
   avgQccSs: number;
+  avgCert2024: number;
   avgCert2025: number;
   avgCert2026: number;
   // Grades

@@ -35,8 +35,9 @@ export const MechanicDetailModal: React.FC<MechanicDetailModalProps> = ({
   const [bmhPoint, setBmhPoint] = useState(mechanic.bmhPoint);
   const [masaKerjaPoint, setMasaKerjaPoint] = useState(mechanic.masaKerjaPoint);
   const [qccSsPoint, setQccSsPoint] = useState(mechanic.qccSsPoint);
-  const [certification2025, setCertification2025] = useState(mechanic.certification2025);
-  const [certification2026, setCertification2026] = useState(mechanic.certification2026);
+  const [certification2024, setCertification2024] = useState(mechanic.certification2024 || 0);
+  const [certification2025, setCertification2025] = useState(mechanic.certification2025 || 0);
+  const [certification2026, setCertification2026] = useState(mechanic.certification2026 || 0);
   const [status, setStatus] = useState(mechanic.status);
 
   // AI Analysis state
@@ -59,8 +60,13 @@ export const MechanicDetailModal: React.FC<MechanicDetailModalProps> = ({
       bmhPoint,
       masaKerjaPoint,
       qccSsPoint,
+      certification2024,
       certification2025,
       certification2026,
+      totalCert2024_2025: certification2024 + certification2025,
+      currentPoint2025: startPoint,
+      grade2025: calculateGrade(startPoint),
+      promosi2025: startPoint >= 121 ? 'Promosi' : '-',
       currentPoint: simulatedCurrentPoint,
       upgrade2026: simulatedGrade,
       promosi2026: isPromoted ? 'Promosi' : '-',
@@ -80,8 +86,9 @@ export const MechanicDetailModal: React.FC<MechanicDetailModalProps> = ({
     setBmhPoint(mechanic.bmhPoint);
     setMasaKerjaPoint(mechanic.masaKerjaPoint);
     setQccSsPoint(mechanic.qccSsPoint);
-    setCertification2025(mechanic.certification2025);
-    setCertification2026(mechanic.certification2026);
+    setCertification2024(mechanic.certification2024 || 0);
+    setCertification2025(mechanic.certification2025 || 0);
+    setCertification2026(mechanic.certification2026 || 0);
     setStatus(mechanic.status);
     setAiAnalysis(null);
   };
@@ -362,11 +369,28 @@ export const MechanicDetailModal: React.FC<MechanicDetailModalProps> = ({
                   </span>
                 </div>
 
+                {/* Certification 2024 */}
+                <div className="bg-orange-50/50 p-3 rounded-lg border border-orange-200">
+                  <label className="block text-orange-950 font-medium mb-1 flex items-center justify-between">
+                    <span>Certification 2024:</span>
+                    <span className="text-[10px] text-orange-700">Hasil Uji 2024</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={certification2024}
+                    onChange={(e) => setCertification2024(parseInt(e.target.value, 10) || 0)}
+                    className="w-full font-mono text-sm font-semibold bg-white border border-orange-300 rounded px-2.5 py-1.5 text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-orange-400"
+                  />
+                  <span className="text-[10px] text-orange-800 mt-0.5 block">
+                    Poin uji kompetensi periode tahun 2024
+                  </span>
+                </div>
+
                 {/* Certification 2025 */}
-                <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-200 sm:col-span-2">
+                <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-200">
                   <label className="block text-amber-950 font-medium mb-1 flex items-center justify-between">
-                    <span>Certification 2025 (Tahun Lalu):</span>
-                    <span className="text-[10px] text-amber-700">Hasil Uji Sertifikasi 2025</span>
+                    <span>Certification 2025:</span>
+                    <span className="text-[10px] text-amber-700">Hasil Uji 2025</span>
                   </label>
                   <input
                     type="number"
@@ -375,7 +399,7 @@ export const MechanicDetailModal: React.FC<MechanicDetailModalProps> = ({
                     className="w-full font-mono text-sm font-semibold bg-white border border-amber-300 rounded px-2.5 py-1.5 text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-amber-400"
                   />
                   <span className="text-[10px] text-amber-800 mt-0.5 block">
-                    Poin sertifikasi tahun 2025 sebagai rekam jejak capaian historis
+                    Poin sertifikasi periode tahun 2025
                   </span>
                 </div>
               </div>

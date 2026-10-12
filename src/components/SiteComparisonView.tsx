@@ -14,7 +14,7 @@ export const SiteComparisonView: React.FC<SiteComparisonViewProps> = ({
   onSelectSite,
 }) => {
   const [sortField, setSortField] = useState<
-    'totalPoints' | 'count' | 'avgPoints' | 'promotedCount' | 'cert2026' | 'cert2025' | 'bmc' | 'bmh' | 'masaKerja' | 'qcc'
+    'totalPoints' | 'count' | 'avgPoints' | 'promotedCount' | 'cert2026' | 'cert2025' | 'cert2024' | 'bmc' | 'bmh' | 'masaKerja' | 'qcc'
   >('totalPoints');
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -32,8 +32,9 @@ export const SiteComparisonView: React.FC<SiteComparisonViewProps> = ({
     const bmh = list.reduce((acc, m) => acc + m.bmhPoint, 0);
     const masaKerja = list.reduce((acc, m) => acc + m.masaKerjaPoint, 0);
     const qcc = list.reduce((acc, m) => acc + m.qccSsPoint, 0);
-    const cert2025 = list.reduce((acc, m) => acc + m.certification2025, 0);
-    const cert2026 = list.reduce((acc, m) => acc + m.certification2026, 0);
+    const cert2024 = list.reduce((acc, m) => acc + (m.certification2024 || 0), 0);
+    const cert2025 = list.reduce((acc, m) => acc + (m.certification2025 || 0), 0);
+    const cert2026 = list.reduce((acc, m) => acc + (m.certification2026 || 0), 0);
 
     // Grade distributions
     const grades: Record<string, number> = { G1: 0, G2: 0, G3: 0, G4: 0, G5: 0, G6: 0, G7: 0 };
@@ -54,6 +55,7 @@ export const SiteComparisonView: React.FC<SiteComparisonViewProps> = ({
       bmh,
       masaKerja,
       qcc,
+      cert2024,
       cert2025,
       cert2026,
       grades,
@@ -157,6 +159,15 @@ export const SiteComparisonView: React.FC<SiteComparisonViewProps> = ({
                   </div>
                 </th>
                 <th
+                  onClick={() => handleSort('cert2024')}
+                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 whitespace-nowrap text-right text-orange-600"
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    <span>Cert 2024</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </th>
+                <th
                   onClick={() => handleSort('cert2025')}
                   className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 whitespace-nowrap text-right text-amber-600"
                 >
@@ -218,6 +229,9 @@ export const SiteComparisonView: React.FC<SiteComparisonViewProps> = ({
                   </td>
                   <td className="py-2.5 px-3 text-right tabular-nums text-purple-700 font-medium">
                     {row.qcc.toLocaleString()}
+                  </td>
+                  <td className="py-2.5 px-3 text-right tabular-nums text-orange-700 font-medium">
+                    {row.cert2024.toLocaleString()}
                   </td>
                   <td className="py-2.5 px-3 text-right tabular-nums text-amber-700 font-medium">
                     {row.cert2025.toLocaleString()}
