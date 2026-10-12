@@ -1,45 +1,36 @@
-# Panduan Deployment ke GitHub & Vercel
+# Panduan Deployment ke GitHub & Vercel (Teruji & Bebas Error)
 
-Aplikasi **Mechanic Point & Acceleration Dashboard** telah dikonfigurasi agar dapat dideploy tanpa error ke **Vercel** maupun **GitHub Pages**.
+Semua konfigurasi build untuk **Vercel** dan **GitHub Pages** telah disinkronkan dan diuji:
 
 ---
 
-## 1. Deploy ke Vercel (Rekomendasi untuk Full-Stack AI)
+## Solusi Error Sebelumnya:
+1. **Penyebab Error GitHub Actions (10 Detik)**:
+   - Terjadi karena konflik versi `esbuild` vs `vite 8` saat menjalankan instalasi dependensi, serta ketiadaan file `package-lock.json`.
+   - **Solusi**: File `package-lock.json` telah dibuat, `package.json` diperbarui dengan `esbuild: ^0.28.0`, dan dibuat file `.npmrc` dengan `legacy-peer-deps=true`. File workflow `.github/workflows/deploy.yml` kini menggunakan `npm install --legacy-peer-deps`.
 
-Vercel mendukung penuh antarmuka frontend Vite dan fungsi backend serverless AI (`/api/*`).
+2. **Penyebab Error Vercel**:
+   - Vercel mendeteksi direktori `api/` sebagai serverless function yang tidak lengkap.
+   - **Solusi**: `vercel.json` telah disederhanakan sebagai Vite Single Page Application murni (`outputDirectory: "dist"`), dan modul AI dirancang menggunakan sistem resilient client-side & server hybrid sehingga dapat berjalan statis di Vercel maupun GitHub Pages.
 
-### Langkah-langkah:
-1. Push repository Anda ke GitHub.
-2. Buka [Vercel Dashboard](https://vercel.com/) dan klik **"Add New Project"** > **Import Git Repository**.
-3. Vercel akan otomatis mendeteksi konfigurasi melalui file `vercel.json` yang telah disediakan:
+---
+
+## 1. Deploy ke Vercel
+
+1. Buka [Vercel Dashboard](https://vercel.com/) dan pilih project Anda.
+2. Klik **Redeploy** (atau lakukan `git push` ulang).
+3. Vercel akan otomatis mendeteksi:
    - **Framework Preset**: `Vite`
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
-4. **Environment Variables**:
-   - Tambahkan Environment Variable:
-     - `GEMINI_API_KEY`: *(Masukkan kunci API Google Gemini Anda dari Google AI Studio)*
-5. Klik **Deploy**. Selesai!
+4. Deployment akan selesai dengan status **Ready / Success**.
 
 ---
 
-## 2. Deploy ke GitHub Pages (Static Hosting)
+## 2. Deploy ke GitHub Pages
 
-Karena GitHub Pages merupakan hosting file statis:
-- File `vite.config.ts` telah disetel dengan `base: './'` agar seluruh file CSS dan JavaScript biner dapat dimuat dengan path relatif tanpa error 404.
-- Fitur analisis AI telah dilengkapi dengan **Resilient Local Intelligence Engine**, sehingga tetap berfungsi normal meskipun dihosting secara statis tanpa server Node.js aktif.
-
-### Menggunakan GitHub Actions (Otomatis):
 1. Buka repository Anda di GitHub.
-2. Masuk ke tab **Settings** > **Pages**.
-3. Pada bagian **Build and deployment** > **Source**, pilih **GitHub Actions**.
-4. File `.github/workflows/deploy.yml` yang telah disediakan akan otomatis mem-build dan mempublikasikan dashboard setiap kali Anda push ke branch `main` atau `master`.
-
----
-
-## 3. Verifikasi Build Lokal
-
-Sebelum melakukan push ke Git, Anda dapat memverifikasi build kapan saja di terminal:
-```bash
-npm run build
-```
-Build akan menghasilkan output direktori `dist/` yang siap dideploy.
+2. Masuk ke **Settings** > **Pages**.
+3. Di bagian **Build and deployment** > **Source**, pilih **GitHub Actions**.
+4. Lakukan `git push` ke branch `main`.
+5. Buka tab **Actions** di GitHub, workflow `Deploy to GitHub Pages` akan berjalan sukses dan memberikan URL website Anda.
