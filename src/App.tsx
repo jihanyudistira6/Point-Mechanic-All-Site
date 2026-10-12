@@ -1,40 +1,84 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { INITIAL_MECHANICS, ALL_SITES } from './data/mechanicsData';
 import { Mechanic } from './types/mechanic';
 import { Navbar } from './components/Navbar';
 import { KpiCards } from './components/KpiCards';
-import { SiteCategoryCharts } from './components/SiteCategoryCharts';
 import { MechanicTable } from './components/MechanicTable';
 import { SiteComparisonView } from './components/SiteComparisonView';
 import { MechanicDetailModal } from './components/MechanicDetailModal';
 import { GradeMatrixModal } from './components/GradeMatrixModal';
 import { AddMechanicModal } from './components/AddMechanicModal';
+import { SpreadsheetSyncModal } from './components/SpreadsheetSyncModal';
+import { AiAssistantPanel } from './components/AiAssistantPanel';
 import {
-  MapPin,
-  Trophy,
-  BarChart3,
-  ListFilter,
+  FileSpreadsheet,
   Sparkles,
-  ArrowRight,
-  Shield,
-  Clock,
-  Layers,
+  MapPin,
+  ListFilter,
+  CheckCircle2,
+  RefreshCw,
+  Database,
 } from 'lucide-react';
 
+const STORAGE_KEY = 'mechanic_point_database_records';
+const SPREADSHEET_SOURCE_KEY = 'mechanic_point_spreadsheet_source';
+
 export default function App() {
-  const [mechanics, setMechanics] = useState<Mechanic[]>(INITIAL_MECHANICS);
+  // Load initial records from localStorage if present, else fallback to INITIAL_MECHANICS
+  const [mechanics, setMechanics] = useState<Mechanic[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load from localStorage:', e);
+    }
+    return INITIAL_MECHANICS;
+  });
+
+  const [spreadsheetSource, setSpreadsheetSource] = useState<string>(() => {
+    return (
+      localStorage.getItem(SPREADSHEET_SOURCE_KEY) ||
+      'CURRENT POINT MECHANIC ALL SITE.csv (Spreadsheet Terhubung)'
+    );
+  });
+
+  const [lastSyncTime, setLastSyncTime] = useState<string>('Hari ini, Sinkron Otomatis');
   const [selectedSite, setSelectedSite] = useState<string>('ALL');
-  const [activeTab, setActiveTab] = useState<'overview' | 'mechanics' | 'site-compare' | 'grade-matrix'>('overview');
+  // Default and primary tab is 'table' (Overview & Grafik removed as requested)
+  const [activeTab, setActiveTab] = useState<'table' | 'site-compare'>('table');
+
+  // AI Assistant panel toggle
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
 
   // Modals
   const [viewingMechanic, setViewingMechanic] = useState<Mechanic | null>(null);
   const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
 
-  // Available unique sites
+  // Persist mechanics updates to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mechanics));
+    } catch (e) {
+      console.warn('Could not save to localStorage:', e);
+    }
+  }, [mechanics]);
+
+  useEffect(() => {
+    localStorage.setItem(SPREADSHEET_SOURCE_KEY, spreadsheetSource);
+  }, [spreadsheetSource]);
+
+  // Unique sites from current dataset
   const allSites = useMemo(() => {
-    return ALL_SITES;
-  }, []);
+    const list = Array.from(new Set(mechanics.map((m) => m.site))).sort();
+    return list.length > 0 ? list : ALL_SITES;
+  }, [mechanics]);
 
   // Filtered mechanics based on selected site
   const siteFilteredMechanics = useMemo(() => {
@@ -42,14 +86,7 @@ export default function App() {
     return mechanics.filter((m) => m.site === selectedSite);
   }, [mechanics, selectedSite]);
 
-  // Top 5 Leaderboard mechanics
-  const topMechanics = useMemo(() => {
-    return [...siteFilteredMechanics]
-      .sort((a, b) => b.currentPoint - a.currentPoint)
-      .slice(0, 5);
-  }, [siteFilteredMechanics]);
-
-  // Update a mechanic (from simulator modal)
+  // Update a mechanic (from simulator / detail modal)
   const handleUpdateMechanic = (updated: Mechanic) => {
     setMechanics((prev) =>
       prev.map((m) => (m.nik === updated.nik || m.no === updated.no ? updated : m))
@@ -119,65 +156,79 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      {/* 1. Top Bar Contract */}
+      {/* 1. Header Navigation Bar */}
       <Navbar
         activeTab={activeTab}
-        onTabChange={(tab) => {
-          if (tab === 'grade-matrix') {
-            setIsGradeModalOpen(true);
-          } else {
-            setActiveTab(tab);
-          }
-        }}
+        onTabChange={(tab) => setActiveTab(tab)}
         onExportCsv={handleExportCsv}
         onAddMechanic={() => setIsAddModalOpen(true)}
         onOpenGradeInfo={() => setIsGradeModalOpen(true)}
+        onOpenSpreadsheetModal={() => setIsSpreadsheetModalOpen(true)}
+        onToggleAiPanel={() => setIsAiPanelOpen(!isAiPanelOpen)}
+        isAiPanelOpen={isAiPanelOpen}
         totalFiltered={siteFilteredMechanics.length}
+        totalMechanics={mechanics.length}
       />
 
-      {/* Main Container */}
+      {/* Main Viewport Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Site Quick Filter Bar & Header Title */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+        {/* Spreadsheet Database Connection & AI Banner */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-xs">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xl font-bold tracking-tight text-slate-900">
-                  Mechanic Point & Acceleration System
+                  Database & Point Evaluasi Mechanic
                 </span>
                 <span className="text-xs text-slate-500 font-mono">
-                  · Periode Evaluasi 2026
+                  · Berbasis AI & Spreadsheet
                 </span>
               </div>
               <p className="mt-1 text-xs text-slate-600">
-                Monitoring capaian akumulasi poin seluruh mekanik: akselerasi (Rank 1 BMC, BMH, Masa Kerja, QCC/SS) dan perbandingan Sertifikasi 2025 vs 2026 di seluruh site operasional.
+                Sistem database terintegrasi spreadsheet dengan fitur filter canggih seluruh site, pemantauan poin akselerasi (Rank 1 BMC, BMH, Masa Kerja, QCC/SS, Sertifikasi 2025 & 2026), serta evaluasi karir cerdas berbasis AI.
               </p>
             </div>
 
-            {/* Selected site active pill */}
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 font-medium">Filter Site Aktif:</span>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg font-medium shadow-xs">
-                <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                <span>{selectedSite === 'ALL' ? 'Semua Site Operasional' : `Site: ${selectedSite}`}</span>
-                {selectedSite !== 'ALL' && (
-                  <button
-                    onClick={() => setSelectedSite('ALL')}
-                    className="ml-1 text-[10px] text-slate-300 hover:text-white underline"
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
+            {/* Quick Spreadsheet & AI Status Pill */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setIsSpreadsheetModalOpen(true)}
+                className="px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-900 text-xs font-medium flex items-center gap-1.5 transition-colors shadow-2xs"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Spreadsheet Terhubung</span>
+                <span className="font-mono font-bold text-emerald-700 ml-1">
+                  ({mechanics.length})
+                </span>
+              </button>
+
+              <button
+                onClick={() => setIsAiPanelOpen(!isAiPanelOpen)}
+                className="px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-900 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>{isAiPanelOpen ? 'Tutup Asisten AI' : 'Buka Asisten AI'}</span>
+              </button>
             </div>
           </div>
 
           {/* Quick Site Segmented Selector */}
           <div className="mt-4 pt-3 border-t border-slate-100">
-            <div className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1">
-              <ListFilter className="w-3 h-3 text-slate-400" />
-              <span>Pilih Site Operasional:</span>
+            <div className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <ListFilter className="w-3 h-3 text-slate-400" />
+                <span>Pilih Filter Site Operasional:</span>
+              </div>
+              {selectedSite !== 'ALL' && (
+                <button
+                  onClick={() => setSelectedSite('ALL')}
+                  className="text-blue-600 hover:text-blue-800 underline text-[11px]"
+                >
+                  Tampilkan Semua Site
+                </button>
+              )}
             </div>
+
             <div className="flex flex-wrap items-center gap-1.5">
               <button
                 onClick={() => setSelectedSite('ALL')}
@@ -211,83 +262,19 @@ export default function App() {
           </div>
         </div>
 
-        {/* 2. KPI Cards */}
-        <KpiCards
-          mechanics={siteFilteredMechanics}
+        {/* 2. AI Assistant Engine Panel (Expandable) */}
+        <AiAssistantPanel
           selectedSite={selectedSite}
+          mechanics={siteFilteredMechanics}
+          isOpen={isAiPanelOpen}
+          onToggle={() => setIsAiPanelOpen(!isAiPanelOpen)}
         />
 
-        {/* 3. Primary Views based on Active Tab */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Charts Section: Primary requirement requested by user */}
-            <SiteCategoryCharts
-              mechanics={mechanics}
-              selectedSite={selectedSite}
-              onSelectSite={(site) => setSelectedSite(site)}
-              allSites={allSites}
-            />
+        {/* 3. KPI Aggregate Metrics */}
+        <KpiCards mechanics={siteFilteredMechanics} selectedSite={selectedSite} />
 
-            {/* Quick Leaderboard Strip */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-slate-100 gap-2">
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm font-bold text-slate-900">
-                    Top 5 Mekanik Tertinggi Poin ({selectedSite === 'ALL' ? 'Seluruh Site' : `Site ${selectedSite}`})
-                  </span>
-                </div>
-                <button
-                  onClick={() => setActiveTab('mechanics')}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                >
-                  <span>Lihat Seluruh {siteFilteredMechanics.length} Mekanik</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mt-3">
-                {topMechanics.map((m, idx) => (
-                  <div
-                    key={m.nik}
-                    onClick={() => setViewingMechanic(m)}
-                    className="p-3 rounded-lg border border-slate-200/80 bg-slate-50/50 hover:bg-blue-50/40 hover:border-blue-200 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span className="font-mono font-bold text-slate-900">#{idx + 1}</span>
-                      <span className="bg-slate-200 text-slate-800 px-1.5 py-0.2 rounded font-bold font-mono">
-                        {m.upgrade2026}
-                      </span>
-                    </div>
-                    <div className="mt-1 font-semibold text-slate-900 text-xs truncate" title={m.nama}>
-                      {m.nama}
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5 truncate">
-                      {m.site} · NIK {m.nik}
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
-                      <span className="text-slate-500">Current:</span>
-                      <span className="font-bold font-mono text-slate-900 tabular-nums">
-                        {m.currentPoint} pts
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Complete Data Table */}
-            <MechanicTable
-              mechanics={siteFilteredMechanics}
-              allSites={allSites}
-              selectedSite={selectedSite}
-              onSelectSite={(site) => setSelectedSite(site)}
-              onViewMechanic={(m) => setViewingMechanic(m)}
-            />
-          </div>
-        )}
-
-        {activeTab === 'mechanics' && (
+        {/* 4. Primary View: TABEL DATABASE YANG DAPAT DIFILTER (Replacing Overview & Grafik) */}
+        {activeTab === 'table' && (
           <div className="space-y-6">
             <MechanicTable
               mechanics={siteFilteredMechanics}
@@ -299,23 +286,15 @@ export default function App() {
           </div>
         )}
 
+        {/* 5. Secondary View: Komparasi Site */}
         {activeTab === 'site-compare' && (
           <div className="space-y-6">
-            {/* Visual Charts */}
-            <SiteCategoryCharts
-              mechanics={mechanics}
-              selectedSite={selectedSite}
-              onSelectSite={(site) => setSelectedSite(site)}
-              allSites={allSites}
-            />
-
-            {/* In-depth Matrix Comparison Table */}
             <SiteComparisonView
               mechanics={mechanics}
               allSites={allSites}
               onSelectSite={(site) => {
                 setSelectedSite(site);
-                setActiveTab('overview');
+                setActiveTab('table');
               }}
             />
           </div>
@@ -326,17 +305,27 @@ export default function App() {
       <footer className="bg-white border-t border-slate-200 py-6 mt-12 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-800">MechanicPoint Dashboard</span>
-            <span>· Sistem Manajemen Poin & Akselerasi Grade Mekanik</span>
+            <span className="font-semibold text-slate-800">MechanicPoint System</span>
+            <span>· Database Spreadsheet & Career Acceleration Engine</span>
           </div>
           <div className="flex items-center gap-4 text-slate-500">
-            <span>Total: <strong>{mechanics.length} Data Mekanik</strong></span>
+            <span>
+              Total: <strong>{mechanics.length} Data Mekanik</strong>
+            </span>
+            <span aria-hidden="true">·</span>
+            <button
+              onClick={() => setIsSpreadsheetModalOpen(true)}
+              className="hover:text-slate-800 underline flex items-center gap-1"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Kelola Spreadsheet</span>
+            </button>
             <span aria-hidden="true">·</span>
             <button
               onClick={() => setIsGradeModalOpen(true)}
               className="hover:text-slate-800 underline"
             >
-              Standar Matriks Grade (G1–G7)
+              Panduan Matriks Grade
             </button>
           </div>
         </div>
@@ -360,6 +349,19 @@ export default function App() {
         onAdd={handleAddMechanic}
         allSites={allSites}
         nextNo={mechanics.length + 1}
+      />
+
+      <SpreadsheetSyncModal
+        isOpen={isSpreadsheetModalOpen}
+        onClose={() => setIsSpreadsheetModalOpen(false)}
+        mechanics={mechanics}
+        onUpdateMechanics={setMechanics}
+        lastSyncTime={lastSyncTime}
+        spreadsheetSource={spreadsheetSource}
+        onSetSpreadsheetSource={(src) => {
+          setSpreadsheetSource(src);
+          setLastSyncTime(new Date().toLocaleTimeString('id-ID'));
+        }}
       />
     </div>
   );

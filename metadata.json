@@ -1,6 +1,8 @@
 {
   "name": "Mechanic Point & Acceleration Dashboard",
-  "description": "Dashboard monitoring point mechanic seluruh site, analisis akselerasi point (Rank 1 BMC, BMH, Masa Kerja, QCC/SS, Sertifikasi 2025 & 2026), filter site, dan tracking promosi grade.",
+  "description": "Dashboard database mekanik berbasis AI dan integrasi Spreadsheet, dilengkapi tabel data komprehensif dengan filter canggih, evaluasi karir cerdas, tracking akselerasi poin (Rank 1 BMC, BMH, Masa Kerja, QCC/SS, Sertifikasi 2025 & 2026), dan promosi grade.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
